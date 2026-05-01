@@ -4,86 +4,68 @@ def get_today_formatted():
     return datetime.date.today().strftime('%B %d, %Y')
 
 # ══════════════════════════════════════
-# TEMPLATE STRINGS PER STORY TYPE
+# CAPTION WRITERS
 # ══════════════════════════════════════
 
 def write_pace_caption(story):
-    name = story['entity_name']
-    stat = story['stat_label']
-    current = story['value']
+    name      = story['entity_name']
+    stat      = story['stat_label']
+    current   = story['value']
     projected = story['projected']
-    games = story['games_played']
-    record = story['record']
+    games     = story['games_played']
+    record    = story['record']
+    ctx       = story.get('record_context', f'The single-season record is {record}.')
 
-    hook = f"{name} is on pace for {projected} {stat} this season."
-    context = f"{current} {stat} through {games} games."
-    rarity = f"The single-season record is {record}."
-    cta = f"Is this the real deal? 👇"
-    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCount"
+    hook     = story['label'] + '.'
+    body     = f"{current} {stat} through {games} games. {ctx}"
+    cta      = f"Is this the real deal? 👇"
+    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCountID"
 
-    caption = f"{hook}\n\n{context} {rarity}\n\n{cta}\n\n{hashtags}"
-    return caption
+    return f"{hook}\n\n{body}\n\n{cta}\n\n{hashtags}"
 
 def write_streak_caption(story):
-    name = story['entity_name']
+    name  = story['entity_name']
     value = story['value']
-    stat_type = 'hitting' if story['type'] == 'hitting_streak' else 'on-base'
+    kind  = 'hitting' if story['type'] == 'hitting_streak' else 'on-base'
+    lede  = story.get('lede', '')
 
-    hook = f"{name} has a {value}-game {stat_type} streak."
-    context = f"That's one of the longest active {stat_type} streaks in baseball right now."
-    cta = f"How far does it go? 👇"
-    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCount"
+    hook     = story['label'] + '.'
+    cta      = f"How far does it go? 👇"
+    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCountID"
 
-    caption = f"{hook}\n\n{context}\n\n{cta}\n\n{hashtags}"
-    return caption
+    return f"{hook}\n\n{lede}\n\n{cta}\n\n{hashtags}"
 
 def write_outlier_caption(story):
     name = story['entity_name']
-    value = story['value']
-    stat = story['stat'].upper()
-    z = story['z_score']
+    lede = story.get('lede', '')
 
-    if story['type'] == 'outlier_era':
-        hook = f"{name} has a {value} ERA this season."
-        context = f"That puts him in the top tier of all MLB starters — {z} standard deviations better than average."
-    else:
-        hook = f"{name} is posting a {value} {stat} this season."
-        context = f"That's {z} standard deviations above the MLB average — elite territory."
+    hook     = story['label'] + '.'
+    cta      = "The numbers don't lie. 👇"
+    hashtags = f"#MLB #Baseball #Statcast #{name.replace(' ', '')} #FullCountID"
 
-    cta = f"The numbers don't lie. 👇"
-    hashtags = f"#MLB #Baseball #Statcast #{name.replace(' ', '')} #FullCount"
-
-    caption = f"{hook}\n\n{context}\n\n{cta}\n\n{hashtags}"
-    return caption
-
-# ══════════════════════════════════════
-# MASTER CAPTION WRITER
-# ══════════════════════════════════════
+    return f"{hook}\n\n{lede}\n\n{cta}\n\n{hashtags}"
 
 def write_caption(story):
-    story_type = story['type']
-    if story_type == 'pace':
+    t = story['type']
+    if t == 'pace':
         return write_pace_caption(story)
-    elif story_type in ['hitting_streak', 'onbase_streak']:
+    elif t in ['hitting_streak', 'onbase_streak']:
         return write_streak_caption(story)
-    elif story_type in ['outlier_ops', 'outlier_avg', 'outlier_era']:
+    elif t in ['outlier_ops', 'outlier_avg', 'outlier_era']:
         return write_outlier_caption(story)
-    else:
-        return f"{story['entity_name']} — {story['label']} #MLB #FullCount"
+    return f"{story['entity_name']} — {story['label']} #MLB #FullCountID"
 
 # ══════════════════════════════════════
-# GENERATE DIGEST FOR TELEGRAM
+# TELEGRAM DIGEST
 # ══════════════════════════════════════
 
 def generate_digest(top_stories):
     today = get_today_formatted()
     lines = [f"FULL COUNT · {today}", f"Today's top stories:\n"]
     for i, story in enumerate(top_stories, 1):
-        caption_preview = write_caption(story).split('\n')[0]
         lines.append(
             f"{i}. {story['entity_name']} [{story['final_score']}]\n"
             f"   {story['label']}\n"
-            f"   {caption_preview}\n"
         )
     lines.append("Reply 1–5 to pick a story.")
     return '\n'.join(lines)

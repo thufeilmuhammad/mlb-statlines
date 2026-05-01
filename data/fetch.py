@@ -7,6 +7,20 @@ from pybaseball import batting_stats, pitching_stats
 import warnings
 warnings.filterwarnings('ignore')
 
+TEAM_NAME_TO_ABBR = {
+    'New York Yankees': 'NYY', 'Boston Red Sox': 'BOS', 'Baltimore Orioles': 'BAL',
+    'Tampa Bay Rays': 'TBR', 'Toronto Blue Jays': 'TOR', 'Houston Astros': 'HOU',
+    'Los Angeles Angels': 'LAA', 'Seattle Mariners': 'SEA', 'Oakland Athletics': 'OAK',
+    'Texas Rangers': 'TEX', 'Athletics': 'ATH', 'Cleveland Guardians': 'CLE',
+    'Chicago White Sox': 'CWS', 'Detroit Tigers': 'DET', 'Kansas City Royals': 'KCR',
+    'Minnesota Twins': 'MIN', 'New York Mets': 'NYM', 'Atlanta Braves': 'ATL',
+    'Miami Marlins': 'MIA', 'Philadelphia Phillies': 'PHI', 'Washington Nationals': 'WSN',
+    'Chicago Cubs': 'CHC', 'Cincinnati Reds': 'CIN', 'Milwaukee Brewers': 'MIL',
+    'Pittsburgh Pirates': 'PIT', 'St. Louis Cardinals': 'STL', 'Arizona Diamondbacks': 'ARI',
+    'Colorado Rockies': 'COL', 'Los Angeles Dodgers': 'LAD', 'San Diego Padres': 'SDP',
+    'San Francisco Giants': 'SFG',
+}
+
 MLB_API = "https://statsapi.mlb.com/api/v1"
 
 def get_yesterday():
@@ -151,7 +165,8 @@ def fetch_season_batting():
         for p in data.get('stats', [{}])[0].get('splits', []):
             s = p.get('stat', {})
             player = p.get('player', {})
-            team = p.get('team', {}).get('abbreviation', '')
+            team_full = p.get('team', {}).get('name', '')
+            team = TEAM_NAME_TO_ABBR.get(team_full, team_full)
             ab = int(s.get('atBats', 0))
             hits = int(s.get('hits', 0))
             bb = int(s.get('baseOnBalls', 0))
@@ -205,7 +220,8 @@ def fetch_season_pitching():
         for p in data.get('stats', [{}])[0].get('splits', []):
             s = p.get('stat', {})
             player = p.get('player', {})
-            team = p.get('team', {}).get('abbreviation', '')
+            team_full = p.get('team', {}).get('name', '')
+            team = TEAM_NAME_TO_ABBR.get(team_full, team_full)
             ip_str = str(s.get('inningsPitched', '0.0'))
             try:
                 ip = float(ip_str)
