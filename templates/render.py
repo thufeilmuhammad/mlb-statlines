@@ -1,5 +1,6 @@
 import os
 import datetime
+import asyncio
 from config import get_team_colors, IG_HANDLE, ACCOUNT_NAME
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'graphics', 'output')
@@ -12,23 +13,36 @@ def luminance(hex_color):
     r, g, b = hex_to_rgb(hex_color)
     return 0.299 * r + 0.587 * g + 0.114 * b
 
-def render_html_to_image(html_content, output_path):
-    from playwright.sync_api import sync_playwright
+async def render_html_to_image_async(html_content, output_path):
+    from playwright.async_api import async_playwright
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={'width': 1080, 'height': 1400})
-        page.set_content(html_content, wait_until='networkidle')
-        page.wait_for_timeout(800)
-        card = page.query_selector('.card')
-        box  = card.bounding_box()
-        page.screenshot(path=output_path, clip={
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page(viewport={'width': 1080, 'height': 1400})
+        await page.set_content(html_content, wait_until='networkidle')
+        await page.wait_for_timeout(800)
+        card = await page.query_selector('.card')
+        box  = await card.bounding_box()
+        await page.screenshot(path=output_path, clip={
             'x': box['x'], 'y': box['y'],
             'width': box['width'], 'height': box['height']
         })
-        browser.close()
+        await browser.close()
     print(f"Graphic saved: {output_path}")
     return output_path
+
+def render_html_to_image(html_content, output_path):
+    """Sync wrapper — works both inside and outside async context."""
+    try:
+        loop = asyncio.get_running_loop()
+        # We're inside an async context — run in thread pool
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, render_html_to_image_async(html_content, output_path))
+            return future.result()
+    except RuntimeError:
+        # No running loop — just run directly
+        return asyncio.run(render_html_to_image_async(html_content, output_path))
 
 def build_pace_html(story):
     team      = story.get('team', '')
@@ -39,7 +53,6 @@ def build_pace_html(story):
 
     sr, sg, sb = hex_to_rgb(secondary)
 
-    # Area fill — use secondary if high contrast, else use text color
     sec_lum = luminance(secondary)
     pri_lum = luminance(primary)
     if abs(sec_lum - pri_lum) < 60:
@@ -109,14 +122,10 @@ def build_pace_html(story):
     color: {text_solid};
   }}
   .meta {{ font-size: 17px; color: {tc(0.5)}; letter-spacing: 0.06em; }}
-  .inner {{
-    padding: 22px 44px 0;
-    display: flex; flex-direction: column;
-  }}
+  .inner {{ padding: 22px 44px 0; display: flex; flex-direction: column; }}
   .eyebrow {{
     font-size: 17px; color: {tc(0.5)};
-    letter-spacing: 0.14em; text-transform: uppercase;
-    margin-bottom: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px;
   }}
   .headline {{
     font-size: 52px; font-weight: 700;
@@ -126,19 +135,16 @@ def build_pace_html(story):
   }}
   .lede {{
     font-size: 19px; color: {tc(0.65)};
-    font-style: italic; line-height: 1.55;
-    margin-bottom: 20px;
+    font-style: italic; line-height: 1.55; margin-bottom: 20px;
   }}
   .stat-row {{ display: flex; gap: 14px; margin-bottom: 20px; }}
   .sc {{
     flex: 1; border-radius: 6px; padding: 18px 22px 14px;
-    border: 1px solid {sc(0.45)};
-    background: {sc(0.12)};
+    border: 1px solid {sc(0.45)}; background: {sc(0.12)};
   }}
   .sc-val {{
     font-size: 60px; font-weight: 700;
-    font-family: 'Georgia', serif;
-    color: {text_solid}; line-height: 1;
+    font-family: 'Georgia', serif; color: {text_solid}; line-height: 1;
   }}
   .sc-label {{
     font-size: 15px; color: {tc(0.45)};
@@ -148,20 +154,17 @@ def build_pace_html(story):
   .chart-wrap {{ margin-bottom: 20px; }}
   .chart-label {{
     font-size: 15px; color: {tc(0.38)};
-    text-transform: uppercase; letter-spacing: 0.09em;
-    margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 8px;
   }}
   .context {{
     font-size: 18px; color: {tc(0.62)}; line-height: 1.65;
     border-left: 4px solid {sc(0.8)};
-    padding-left: 16px;
-    margin-bottom: 22px;
+    padding-left: 16px; margin-bottom: 22px;
   }}
   .footer {{
     padding: 14px 44px;
     display: flex; justify-content: space-between; align-items: center;
-    border-top: 1px solid {sc(0.25)};
-    background: {sc(0.08)};
+    border-top: 1px solid {sc(0.25)}; background: {sc(0.08)};
   }}
   .footer-text {{ font-size: 15px; color: {tc(0.3)}; letter-spacing: 0.06em; }}
 </style>
@@ -243,7 +246,7 @@ def build_pace_html(story):
   ctx.fillStyle = grad; ctx.fill();
 
   ctx.strokeStyle = '{text_solid}'; ctx.lineWidth = 3;
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.lineJoin='round'; ctx.lineCap='round';
   ctx.beginPath();
   for (let i=0; i<=games; i++) {{
     i===0 ? ctx.moveTo(toX(i),toY(i*current/games)) : ctx.lineTo(toX(i),toY(i*current/games));
@@ -251,7 +254,7 @@ def build_pace_html(story):
   ctx.stroke();
 
   ctx.strokeStyle = '{text_solid}'; ctx.lineWidth = 2;
-  ctx.setLineDash([8,5]); ctx.globalAlpha = 0.4;
+  ctx.setLineDash([8,5]); ctx.globalAlpha=0.4;
   ctx.beginPath();
   for (let i=0; i<=total-games; i++) {{
     const g=games+i, val=current+i*(projected-current)/(total-games);
