@@ -39,8 +39,10 @@ def _commit_approved():
     if src and not os.path.isabs(src):
         src = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', src))
 
-    if src and os.path.exists(src):
+    if src and os.path.exists(src) and os.path.abspath(src) != os.path.abspath(APPROVED_IMAGE):
         shutil.copy2(src, APPROVED_IMAGE)
+
+    if os.path.exists(APPROVED_IMAGE):
         post['image_path'] = 'data/approved_image.png'
         with open(APPROVED_FILE, 'w') as f:
             json.dump(post, f, indent=2)
