@@ -181,7 +181,7 @@ def detect_pace(min_games=20):
 # OUTLIER DETECTOR
 # ══════════════════════════════════════
 
-def detect_outliers(min_games=20, min_ab=60):
+def detect_outliers(min_games=20, min_ab=80):
     conn = get_connection()
     c = conn.cursor()
     candidates = []
@@ -305,7 +305,7 @@ def detect_cold_streaks(window=10, min_ab=20):
 
         recent_avg = round(total_hits / total_ab, 3)
         fame       = get_fame_multiplier(name)
-        threshold  = 0.175 if fame > 1.0 else 0.150
+        threshold  = 0.200 if fame > 1.0 else 0.170
 
         if recent_avg > threshold:
             continue
@@ -315,7 +315,7 @@ def detect_cold_streaks(window=10, min_ab=20):
             WHERE player_id = ? AND season = ?
         ''', (pid, season))
         row = c.fetchone()
-        if not row or not row['avg'] or row['avg'] < 0.220:
+        if not row or not row['avg'] or row['avg'] < 0.210:
             continue
 
         season_avg   = row['avg']
@@ -399,7 +399,7 @@ def detect_era_spike(window=5, min_ip=12.0):
             continue
 
         recent_era = round(total_er / total_ip * 9, 2) if total_ip > 0 else 0
-        if recent_era < 5.00:
+        if recent_era < 4.50:
             continue
 
         c.execute('''
@@ -414,9 +414,9 @@ def detect_era_spike(window=5, min_ip=12.0):
         fame       = get_fame_multiplier(name)
         era_spike  = round(recent_era - season_era, 2)
 
-        if season_era >= 4.50 and fame <= 1.0:
+        if season_era >= 5.00 and fame <= 1.0:
             continue
-        if era_spike < 1.50:
+        if era_spike < 1.00:
             continue
 
         k9     = round(total_k / total_ip * 9, 1) if total_ip > 0 else 0

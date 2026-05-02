@@ -190,20 +190,25 @@ def rank_candidates(candidates, top_n=5):
         seen_type_stat[type_stat] = seen_type_stat.get(type_stat, 0) + 1
 
     # If strict filtering left fewer than top_n, do a relaxed pass
-    # (allow same player twice, but still cap type+stat at 1)
+    # (different players only, still respect type cap and type+stat cap)
     if len(filtered) < top_n:
-        used_ids = {s['entity_id'] for s in filtered}
+        used_ids       = {s['entity_id'] for s in filtered}
+        seen_types2    = dict(seen_types)
         seen_type_stat2 = dict(seen_type_stat)
         for s in scored:
             if len(filtered) >= top_n:
                 break
             if s['entity_id'] in used_ids:
                 continue
-            type_stat = (s['type'], s.get('stat', ''))
+            stype     = s['type']
+            type_stat = (stype, s.get('stat', ''))
+            if seen_types2.get(stype, 0) >= 2:
+                continue
             if seen_type_stat2.get(type_stat, 0) >= 1:
                 continue
             filtered.append(s)
             used_ids.add(s['entity_id'])
+            seen_types2[stype]        = seen_types2.get(stype, 0) + 1
             seen_type_stat2[type_stat] = seen_type_stat2.get(type_stat, 0) + 1
 
     return filtered[:top_n]
