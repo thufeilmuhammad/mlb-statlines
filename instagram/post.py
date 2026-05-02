@@ -8,12 +8,11 @@ GRAPH_API = "https://graph.facebook.com/v21.0"
 
 
 def upload_image(image_path):
-    """Upload image to catbox.moe and return a public URL."""
+    """Upload image to 0x0.st and return a public URL."""
     with open(image_path, 'rb') as f:
         r = requests.post(
-            'https://catbox.moe/user/api.php',
-            data={'reqtype': 'fileupload'},
-            files={'fileToUpload': ('image.png', f, 'image/png')},
+            'https://0x0.st',
+            files={'file': ('image.png', f, 'image/png')},
             timeout=60,
         )
     r.raise_for_status()
