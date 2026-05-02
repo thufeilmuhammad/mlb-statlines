@@ -182,6 +182,7 @@ def detect_pace(min_games=20):
 # ══════════════════════════════════════
 
 def detect_outliers(min_games=20, min_ab=80):
+    from engine.scorer import get_fame_multiplier
     conn = get_connection()
     c = conn.cursor()
     candidates = []
@@ -206,9 +207,10 @@ def detect_outliers(min_games=20, min_ab=80):
             name = b['player_name']
             team = b['team']
 
+            fame = get_fame_multiplier(b['player_name'])
             if ops_std > 0 and b['ops']:
                 z = (b['ops'] - ops_mean) / ops_std
-                if z >= 2.5:
+                if z >= 2.5 and (fame > 1.0 or b['ab'] >= 120):
                     candidates.append({
                         'type': 'outlier_ops',
                         'entity_id': pid, 'entity_name': name, 'team': team,
@@ -222,7 +224,7 @@ def detect_outliers(min_games=20, min_ab=80):
 
             if avg_std > 0 and b['avg']:
                 z = (b['avg'] - avg_mean) / avg_std
-                if z >= 2.5:
+                if z >= 2.5 and (fame > 1.0 or b['ab'] >= 120):
                     candidates.append({
                         'type': 'outlier_avg',
                         'entity_id': pid, 'entity_name': name, 'team': team,
@@ -270,7 +272,7 @@ def detect_outliers(min_games=20, min_ab=80):
 # COLD STREAK DETECTOR
 # ══════════════════════════════════════
 
-def detect_cold_streaks(window=10, min_ab=20):
+def detect_cold_streaks(window=7, min_ab=15):
     """Detect notable batters in a significant cold stretch."""
     from engine.scorer import get_fame_multiplier
     conn = get_connection()
@@ -364,7 +366,7 @@ def detect_cold_streaks(window=10, min_ab=20):
 # ERA SPIKE DETECTOR
 # ══════════════════════════════════════
 
-def detect_era_spike(window=5, min_ip=12.0):
+def detect_era_spike(window=5, min_ip=8.0):
     """Detect pitchers whose ERA has spiked sharply over recent outings."""
     from engine.scorer import get_fame_multiplier
     conn = get_connection()

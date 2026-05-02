@@ -211,6 +211,22 @@ def rank_candidates(candidates, top_n=5):
             seen_types2[stype]        = seen_types2.get(stype, 0) + 1
             seen_type_stat2[type_stat] = seen_type_stat2.get(type_stat, 0) + 1
 
+    # Last resort: if still short, allow any unseen player ignoring type caps
+    if len(filtered) < top_n:
+        used_ids = {s['entity_id'] for s in filtered}
+        used_type_stat = {(s['type'], s.get('stat', '')) for s in filtered}
+        for s in scored:
+            if len(filtered) >= top_n:
+                break
+            if s['entity_id'] in used_ids:
+                continue
+            type_stat = (s['type'], s.get('stat', ''))
+            if type_stat in used_type_stat:
+                continue
+            filtered.append(s)
+            used_ids.add(s['entity_id'])
+            used_type_stat.add(type_stat)
+
     return filtered[:top_n]
 
 if __name__ == '__main__':
