@@ -45,6 +45,38 @@ def write_outlier_caption(story):
 
     return f"{hook}\n\n{lede}\n\n{cta}\n\n{hashtags}"
 
+def write_cold_streak_caption(story):
+    name       = story['entity_name']
+    hits       = story['recent_hits']
+    ab         = story['recent_ab']
+    avg        = story['recent_avg']
+    window     = story['window']
+    season_avg = story['season_avg']
+    ctx        = story.get('context', '')
+
+    hook     = f"{name} is in a serious slump."
+    body     = f"{hits}-for-{ab} (.{int(avg*1000):03d}) over the last {window} games. Season average: {season_avg}.\n\n{ctx}"
+    cta      = "Is this a blip or something more? 👇"
+    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCountID"
+
+    return f"{hook}\n\n{body}\n\n{cta}\n\n{hashtags}"
+
+
+def write_era_spike_caption(story):
+    name       = story['entity_name']
+    recent_era = story['recent_era']
+    season_era = story['season_era']
+    window     = story['window']
+    ctx        = story.get('context', '')
+
+    hook     = f"{name}'s ERA has spiked to {recent_era} over his last {window} outings."
+    body     = f"Season ERA: {season_era}. Something has changed.\n\n{ctx}"
+    cta      = "Regression or red flag? 👇"
+    hashtags = f"#MLB #Baseball #{name.replace(' ', '')} #FullCountID"
+
+    return f"{hook}\n\n{body}\n\n{cta}\n\n{hashtags}"
+
+
 def write_caption(story):
     t = story['type']
     if t == 'pace':
@@ -53,6 +85,10 @@ def write_caption(story):
         return write_streak_caption(story)
     elif t in ['outlier_ops', 'outlier_avg', 'outlier_era']:
         return write_outlier_caption(story)
+    elif t == 'cold_streak':
+        return write_cold_streak_caption(story)
+    elif t == 'era_spike':
+        return write_era_spike_caption(story)
     return f"{story['entity_name']} — {story['label']} #MLB #FullCountID"
 
 # ══════════════════════════════════════

@@ -278,11 +278,181 @@ def build_pace_html(story):
 </html>"""
     return html
 
+def build_slump_html(story):
+    """Template for cold_streak and era_spike stories."""
+    team      = story.get('team', '')
+    colors    = get_team_colors(team)
+    primary   = colors['primary']
+    secondary = colors['secondary']
+    is_light  = luminance(primary) > 128
+
+    sr, sg, sb = hex_to_rgb(secondary)
+
+    sec_lum = luminance(secondary)
+    pri_lum = luminance(primary)
+    if abs(sec_lum - pri_lum) < 60:
+        ar, ag, ab = (0, 0, 0) if is_light else (255, 255, 255)
+    else:
+        ar, ag, ab = sr, sg, sb
+
+    def tc(a):
+        return f'rgba(0,0,0,{a})' if is_light else f'rgba(255,255,255,{a})'
+
+    def sc(a):
+        return f'rgba({sr},{sg},{sb},{a})'
+
+    text_solid = '#000000' if is_light else '#ffffff'
+    today_str  = datetime.date.today().strftime('%B %d, %Y').upper()
+
+    stype = story['type']
+
+    team_names = {
+        'NYY': 'New York Yankees', 'BOS': 'Boston Red Sox', 'BAL': 'Baltimore Orioles',
+        'TBR': 'Tampa Bay Rays',   'TOR': 'Toronto Blue Jays', 'HOU': 'Houston Astros',
+        'LAA': 'LA Angels',        'SEA': 'Seattle Mariners', 'OAK': 'Oakland Athletics',
+        'ATH': 'Athletics',        'TEX': 'Texas Rangers',    'CLE': 'Cleveland Guardians',
+        'CWS': 'Chicago White Sox','DET': 'Detroit Tigers',   'KCR': 'Kansas City Royals',
+        'MIN': 'Minnesota Twins',  'NYM': 'New York Mets',    'ATL': 'Atlanta Braves',
+        'MIA': 'Miami Marlins',    'PHI': 'Philadelphia Phillies', 'WSN': 'Washington Nationals',
+        'CHC': 'Chicago Cubs',     'CIN': 'Cincinnati Reds',  'MIL': 'Milwaukee Brewers',
+        'PIT': 'Pittsburgh Pirates','STL': 'St. Louis Cardinals','ARI': 'Arizona Diamondbacks',
+        'COL': 'Colorado Rockies', 'LAD': 'Los Angeles Dodgers','SDP': 'San Diego Padres',
+        'SFG': 'San Francisco Giants',
+    }
+    team_full = team_names.get(team, team)
+
+    if stype == 'cold_streak':
+        eyebrow    = 'COLD STREAK'
+        headline   = story['label']
+        lede       = story['lede']
+        context    = story.get('context', '')
+        stat1_val  = f".{int(story['recent_avg'] * 1000):03d}"
+        stat1_lbl  = f"AVG last {story['window']} games"
+        stat2_val  = str(story['season_avg'])
+        stat2_lbl  = "Season AVG"
+        stat3_val  = f"{story['recent_hits']}-{story['recent_ab']}"
+        stat3_lbl  = "H-AB in stretch"
+        warn_color = '#e05252'
+    else:  # era_spike
+        eyebrow    = 'ERA SPIKE'
+        headline   = story['label']
+        lede       = story['lede']
+        context    = story.get('context', '')
+        stat1_val  = str(story['recent_era'])
+        stat1_lbl  = f"ERA last {story['window']} outings"
+        stat2_val  = str(story['season_era'])
+        stat2_lbl  = "Season ERA"
+        stat3_val  = f"+{story['era_spike']}"
+        stat3_lbl  = "ERA spike"
+        warn_color = '#e05252'
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    width: 1080px;
+    background: {primary};
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }}
+  .card {{
+    width: 1080px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }}
+  .topbar {{ height: 6px; background: {warn_color}; }}
+  .masthead {{
+    padding: 20px 44px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid {sc(0.3)};
+  }}
+  .pub  {{ font-size: 28px; font-weight: 700; letter-spacing: 0.18em; font-family: 'Georgia', serif; color: {text_solid}; }}
+  .meta {{ font-size: 17px; color: {tc(0.5)}; letter-spacing: 0.06em; }}
+  .inner {{ padding: 22px 44px 0; display: flex; flex-direction: column; }}
+  .eyebrow {{
+    font-size: 15px; color: {warn_color};
+    letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 10px;
+    font-weight: 700;
+  }}
+  .team-label {{ font-size: 17px; color: {tc(0.5)}; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; }}
+  .headline {{
+    font-size: 50px; font-weight: 700;
+    font-family: 'Georgia', serif; color: {text_solid};
+    line-height: 1.1; margin-bottom: 14px;
+    padding-bottom: 14px; border-bottom: 1px solid rgba(228,82,82,0.4);
+  }}
+  .lede {{ font-size: 19px; color: {tc(0.65)}; font-style: italic; line-height: 1.55; margin-bottom: 20px; }}
+  .stat-row {{ display: flex; gap: 14px; margin-bottom: 20px; }}
+  .sc {{
+    flex: 1; border-radius: 6px; padding: 18px 22px 14px;
+    border: 1px solid rgba(228,82,82,0.4); background: rgba(228,82,82,0.08);
+  }}
+  .sc-val {{ font-size: 56px; font-weight: 700; font-family: 'Georgia', serif; color: {warn_color}; line-height: 1; }}
+  .sc-val.neutral {{ color: {text_solid}; }}
+  .sc-label {{ font-size: 14px; color: {tc(0.45)}; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 6px; line-height: 1.4; }}
+  .context {{
+    font-size: 18px; color: {tc(0.62)}; line-height: 1.65;
+    border-left: 4px solid rgba(228,82,82,0.8);
+    padding-left: 16px; margin-bottom: 22px;
+  }}
+  .footer {{
+    padding: 14px 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid {sc(0.25)}; background: {sc(0.08)};
+  }}
+  .footer-text {{ font-size: 15px; color: {tc(0.3)}; letter-spacing: 0.06em; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="topbar"></div>
+  <div class="masthead">
+    <div class="pub">{ACCOUNT_NAME}</div>
+    <div class="meta">{today_str} &nbsp;·&nbsp; {eyebrow}</div>
+  </div>
+  <div class="inner">
+    <div class="team-label">{team_full} &nbsp;·&nbsp; {story['entity_name']}</div>
+    <div class="eyebrow">{eyebrow}</div>
+    <div class="headline">{headline}</div>
+    <div class="lede">{lede}</div>
+    <div class="stat-row">
+      <div class="sc">
+        <div class="sc-val">{stat1_val}</div>
+        <div class="sc-label">{stat1_lbl}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-val neutral">{stat2_val}</div>
+        <div class="sc-label">{stat2_lbl}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-val">{stat3_val}</div>
+        <div class="sc-label">{stat3_lbl}</div>
+      </div>
+    </div>
+    <div class="context">{context}</div>
+  </div>
+  <div class="footer">
+    <div class="footer-text">{IG_HANDLE}</div>
+    <div class="footer-text">MLB STATS API · BASEBALL REFERENCE</div>
+  </div>
+</div>
+</body>
+</html>"""
+    return html
+
+
 def render_story(story, output_filename=None):
-    html = build_pace_html(story)
+    stype = story.get('type', '')
+    if stype in ('cold_streak', 'era_spike'):
+        html = build_slump_html(story)
+    else:
+        html = build_pace_html(story)
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if not output_filename:
-        output_filename = f"{story['type']}_{story['entity_id']}_{datetime.date.today()}.png"
+        output_filename = f"{stype}_{story['entity_id']}_{datetime.date.today()}.png"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     return render_html_to_image(html, output_path)
 

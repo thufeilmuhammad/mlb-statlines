@@ -267,6 +267,197 @@ def detect_outliers(min_games=20):
 
 
 # ══════════════════════════════════════
+# COLD STREAK DETECTOR
+# ══════════════════════════════════════
+
+def detect_cold_streaks(window=10, min_ab=20):
+    """Detect notable batters in a significant cold stretch."""
+    from engine.scorer import get_fame_multiplier
+    conn = get_connection()
+    c = conn.cursor()
+    candidates = []
+    season = get_current_season()
+
+    c.execute('SELECT DISTINCT player_id, player_name, team FROM game_logs')
+    players = c.fetchall()
+
+    for player in players:
+        pid  = player['player_id']
+        name = player['player_name']
+        team = player['team']
+
+        c.execute('''
+            SELECT game_date, ab, hits, k, bb, hr
+            FROM game_logs WHERE player_id = ?
+            ORDER BY game_date DESC LIMIT ?
+        ''', (pid, window))
+        recent = c.fetchall()
+
+        if len(recent) < window:
+            continue
+
+        total_ab   = sum(r['ab']   or 0 for r in recent)
+        total_hits = sum(r['hits'] or 0 for r in recent)
+        total_k    = sum(r['k']    or 0 for r in recent)
+
+        if total_ab < min_ab:
+            continue
+
+        recent_avg = round(total_hits / total_ab, 3)
+        fame       = get_fame_multiplier(name)
+        threshold  = 0.175 if fame > 1.0 else 0.150
+
+        if recent_avg > threshold:
+            continue
+
+        c.execute('''
+            SELECT avg, ops, g FROM season_batting
+            WHERE player_id = ? AND season = ?
+        ''', (pid, season))
+        row = c.fetchone()
+        if not row or not row['avg'] or row['avg'] < 0.220:
+            continue
+
+        season_avg   = row['avg']
+        games_played = row['g']
+        drop         = round(season_avg - recent_avg, 3)
+        k_rate       = round(total_k / total_ab, 3) if total_ab > 0 else 0
+        rarity       = min((threshold - recent_avg) / threshold + fame / 1.5 * 0.3, 1.0)
+
+        candidates.append({
+            'type':         'cold_streak',
+            'entity_id':    pid,
+            'entity_name':  name,
+            'team':         team,
+            'value':        recent_avg,
+            'stat':         'avg',
+            'stat_label':   'batting average',
+            'window':       window,
+            'recent_avg':   recent_avg,
+            'recent_hits':  total_hits,
+            'recent_ab':    total_ab,
+            'recent_k':     total_k,
+            'k_rate':       k_rate,
+            'season_avg':   season_avg,
+            'games_played': games_played,
+            'drop':         drop,
+            'label':        f"{name} is batting .{int(recent_avg*1000):03d} over his last {window} games",
+            'lede':         (
+                f"{name} has gone {total_hits}-for-{total_ab} (.{int(recent_avg*1000):03d}) "
+                f"over his last {window} games — a sharp drop from his season average of {season_avg}."
+            ),
+            'context':      (
+                f"A {drop:.3f}-point drop from his season average over a {window}-game stretch "
+                f"is a significant slump for a player of {name}'s caliber. "
+                f"Strikeout rate in this stretch: {int(k_rate*100)}%. "
+                f"The question is whether this is mechanical, bad luck, or something deeper."
+            ),
+            'raw_rarity':   rarity,
+        })
+
+    conn.close()
+    print(f"Cold streak detector found {len(candidates)} candidates.")
+    return candidates
+
+
+# ══════════════════════════════════════
+# ERA SPIKE DETECTOR
+# ══════════════════════════════════════
+
+def detect_era_spike(window=5, min_ip=12.0):
+    """Detect pitchers whose ERA has spiked sharply over recent outings."""
+    from engine.scorer import get_fame_multiplier
+    conn = get_connection()
+    c = conn.cursor()
+    candidates = []
+    season = get_current_season()
+
+    c.execute('SELECT DISTINCT player_id, player_name, team FROM pitcher_logs')
+    pitchers = c.fetchall()
+
+    for pitcher in pitchers:
+        pid  = pitcher['player_id']
+        name = pitcher['player_name']
+        team = pitcher['team']
+
+        c.execute('''
+            SELECT game_date, ip, er, k, bb, hits_allowed
+            FROM pitcher_logs WHERE player_id = ?
+            ORDER BY game_date DESC LIMIT ?
+        ''', (pid, window))
+        recent = c.fetchall()
+
+        if len(recent) < window:
+            continue
+
+        total_ip = sum(r['ip'] or 0 for r in recent)
+        total_er = sum(r['er'] or 0 for r in recent)
+        total_k  = sum(r['k']  or 0 for r in recent)
+        total_bb = sum(r['bb'] or 0 for r in recent)
+
+        if total_ip < min_ip:
+            continue
+
+        recent_era = round(total_er / total_ip * 9, 2) if total_ip > 0 else 0
+        if recent_era < 5.00:
+            continue
+
+        c.execute('''
+            SELECT era, g, ip FROM season_pitching
+            WHERE player_id = ? AND season = ?
+        ''', (pid, season))
+        row = c.fetchone()
+        if not row or not row['era']:
+            continue
+
+        season_era = row['era']
+        fame       = get_fame_multiplier(name)
+        era_spike  = round(recent_era - season_era, 2)
+
+        if season_era >= 4.50 and fame <= 1.0:
+            continue
+        if era_spike < 1.50:
+            continue
+
+        k9     = round(total_k / total_ip * 9, 1) if total_ip > 0 else 0
+        rarity = min(era_spike / 6 + fame / 1.5 * 0.3, 1.0)
+
+        candidates.append({
+            'type':        'era_spike',
+            'entity_id':   pid,
+            'entity_name': name,
+            'team':        team,
+            'value':       recent_era,
+            'stat':        'era',
+            'stat_label':  'ERA',
+            'window':      window,
+            'recent_era':  recent_era,
+            'season_era':  season_era,
+            'era_spike':   era_spike,
+            'recent_ip':   total_ip,
+            'recent_k':    total_k,
+            'recent_bb':   total_bb,
+            'k9':          k9,
+            'games_played': row['g'],
+            'label':       f"{name} has a {recent_era} ERA over his last {window} outings",
+            'lede':        (
+                f"{name} has posted a {recent_era} ERA over his last {window} outings — "
+                f"a sharp spike from his season ERA of {season_era}."
+            ),
+            'context':     (
+                f"A +{era_spike} ERA spike over {window} outings is a significant red flag. "
+                f"In that stretch: {k9} K/9, {total_bb} walks allowed. "
+                f"Whether it's mechanics, fatigue, or regression, the results demand attention."
+            ),
+            'raw_rarity':  rarity,
+        })
+
+    conn.close()
+    print(f"ERA spike detector found {len(candidates)} candidates.")
+    return candidates
+
+
+# ══════════════════════════════════════
 # RUN ALL DETECTORS
 # ══════════════════════════════════════
 
@@ -276,6 +467,8 @@ def run_all_detectors():
     candidates += detect_streaks()
     candidates += detect_pace()
     candidates += detect_outliers()
+    candidates += detect_cold_streaks()
+    candidates += detect_era_spike()
     print(f"\nTotal candidates found: {len(candidates)}")
     return candidates
 

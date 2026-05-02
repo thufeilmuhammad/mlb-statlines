@@ -77,6 +77,8 @@ COOLDOWN_DAYS = {
     'outlier_ops':    14,
     'outlier_avg':    14,
     'outlier_era':    14,
+    'cold_streak':    7,
+    'era_spike':      7,
 }
 
 # ══════════════════════════════════════
@@ -86,12 +88,14 @@ COOLDOWN_DAYS = {
 # ══════════════════════════════════════
 
 MIN_GAMES = {
-    'pace': 30,          # need 30 games before pace stories fire
-    'outlier_ops': 25,
-    'outlier_avg': 25,
-    'outlier_era': 15,
+    'pace':           30,
+    'outlier_ops':    25,
+    'outlier_avg':    25,
+    'outlier_era':    15,
     'hitting_streak': 0,
-    'onbase_streak': 0,
+    'onbase_streak':  0,
+    'cold_streak':    15,
+    'era_spike':      8,
 }
 
 # ══════════════════════════════════════
@@ -121,9 +125,12 @@ def score_candidate(candidate):
     recency_score = 1.0 if days_since >= 999 else min(days_since / cooldown, 1.0)
 
     fame   = get_fame_multiplier(name)
-    visual = {'hitting_streak': 0.9, 'onbase_streak': 0.9,
-              'pace': 1.0, 'outlier_ops': 0.8,
-              'outlier_avg': 0.8, 'outlier_era': 0.8}.get(story_type, 0.8)
+    visual = {
+        'hitting_streak': 0.9, 'onbase_streak': 0.9,
+        'pace':           1.0,
+        'outlier_ops':    0.8, 'outlier_avg': 0.8, 'outlier_era': 0.8,
+        'cold_streak':    0.85, 'era_spike': 0.85,
+    }.get(story_type, 0.8)
 
     # Global type penalty — if this story type was posted recently by anyone,
     # push it down so different types surface instead
