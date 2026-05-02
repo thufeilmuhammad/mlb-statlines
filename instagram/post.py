@@ -123,6 +123,11 @@ def post_to_instagram():
     print("Creating media container...")
     creation_id = create_media_container(ig_user_id, access_token, image_url, caption)
 
+    # Wait for Meta to process the image before publishing
+    import time
+    print(f"Container {creation_id} created — waiting 15s for processing...")
+    time.sleep(15)
+
     print(f"Publishing container {creation_id}...")
     result    = publish_media(ig_user_id, access_token, creation_id)
     ig_post_id = result.get('id', '')
