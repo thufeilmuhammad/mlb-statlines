@@ -1,0 +1,62 @@
+name: Instagram Post
+
+on:
+  schedule:
+    # 15:00 UTC = 11am EDT (UTC-4)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit the "posted" flag back to the JSON
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests python-dotenv
+
+      - name: Check for approved post
+        id: check
+        run: |
+          if [ -f data/approved_post.json ]; then
+            POSTED=$(python -c "import json; d=json.load(open('data/approved_post.json')); print(d.get('posted', False))")
+            if [ "$POSTED" = "True" ]; then
+              echo "already_posted=true" >> $GITHUB_OUTPUT
+            else
+              echo "already_posted=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "already_posted=true" >> $GITHUB_OUTPUT
+            echo "No approved_post.json found — skipping."
+          fi
+
+      - name: Post to Instagram
+        if: steps.check.outputs.already_posted == 'false'
+        run: python instagram/post.py
+        env:
+          PYTHONPATH: .
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID:   ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+
+      - name: Commit posted flag
+        if: steps.check.outputs.already_posted == 'false'
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name  "GitHub Actions"
+          git remote set-url origin \
+            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git add data/approved_post.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: mark post as published $(date -u +%Y-%m-%d)"
+            git push
+          fi

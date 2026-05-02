@@ -1,0 +1,64 @@
+name: Morning Digest
+
+on:
+  schedule:
+    # 10:00 UTC = 6am EDT (UTC-4)
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit approved_post.json + approved_image.png
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    # Allow up to 5 h so the 4-hour polling window fits comfortably
+    timeout-minutes: 300
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch with a token that can push back
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get today's date (cache key)
+        run: echo "TODAY=$(date -u +%Y-%m-%d)" >> $GITHUB_ENV
+
+      - name: Restore DB cache
+        uses: actions/cache@v4
+        with:
+          path: data/statlines.db
+          key: statlines-db-${{ env.TODAY }}
+          restore-keys: statlines-db-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browser
+        run: playwright install chromium --with-deps
+
+      - name: Initialise DB (no-op if already exists)
+        run: python -c "from data.database import init_db; init_db()"
+        env:
+          PYTHONPATH: .
+
+      - name: Ensure graphics output dir exists
+        run: mkdir -p graphics/output
+
+      - name: Configure git for push-back commit
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name  "GitHub Actions"
+          git remote set-url origin \
+            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+      - name: Run story engine + send digest + wait for approval
+        run: python bot/runner.py
+        env:
+          PYTHONPATH: .
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}

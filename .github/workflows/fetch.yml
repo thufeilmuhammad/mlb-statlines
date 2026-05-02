@@ -1,0 +1,42 @@
+name: Midnight Fetch
+
+on:
+  schedule:
+    # 04:05 UTC = midnight EDT (UTC-4).  The extra 5 min lets any late
+    # game finales finish before we pull box scores.
+    - cron: '5 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get today's date (cache key)
+        run: echo "TODAY=$(date -u +%Y-%m-%d)" >> $GITHUB_ENV
+
+      - name: Restore DB cache
+        uses: actions/cache@v4
+        with:
+          path: data/statlines.db
+          key: statlines-db-${{ env.TODAY }}
+          restore-keys: statlines-db-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Initialise DB (no-op if already exists)
+        run: python -c "from data.database import init_db; init_db()"
+        env:
+          PYTHONPATH: .
+
+      - name: Run daily pull
+        run: python data/fetch.py
+        env:
+          PYTHONPATH: .

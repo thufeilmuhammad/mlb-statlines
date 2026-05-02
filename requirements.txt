@@ -1,0 +1,6 @@
+requests>=2.31
+python-telegram-bot>=21.0
+playwright>=1.40
+python-dotenv>=1.0
+pybaseball>=2.2
+Pillow>=10.0
