@@ -53,6 +53,23 @@ def days_since_last_post(entity_id, story_type):
     last = datetime.datetime.strptime(row['posted_date'], '%Y-%m-%d').date()
     return (datetime.date.today() - last).days
 
+
+def days_since_last_type_post(story_type):
+    """Days since ANY story of this type was posted (any player)."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT posted_date FROM story_log
+        WHERE story_type = ? AND posted = 1
+        ORDER BY posted_date DESC LIMIT 1
+    ''', (story_type,))
+    row = c.fetchone()
+    conn.close()
+    if not row or not row['posted_date']:
+        return 999
+    last = datetime.datetime.strptime(row['posted_date'], '%Y-%m-%d').date()
+    return (datetime.date.today() - last).days
+
 COOLDOWN_DAYS = {
     'hitting_streak': 5,
     'onbase_streak':  5,
@@ -108,9 +125,15 @@ def score_candidate(candidate):
               'pace': 1.0, 'outlier_ops': 0.8,
               'outlier_avg': 0.8, 'outlier_era': 0.8}.get(story_type, 0.8)
 
+    # Global type penalty — if this story type was posted recently by anyone,
+    # push it down so different types surface instead
+    type_days     = days_since_last_type_post(story_type)
+    type_cooldown = COOLDOWN_DAYS.get(story_type, 7)
+    type_penalty  = 1.0 if type_days >= type_cooldown else 0.65
+
     novelty      = (rarity_score * 0.7) + (recency_score * 0.3)
     shareability = (min(fame / 1.5, 1.0) * 0.6) + (visual * 0.4)
-    final_score  = round(((novelty * 0.6) + (shareability * 0.4)) * 100, 1)
+    final_score  = round(((novelty * 0.6) + (shareability * 0.4)) * 100 * type_penalty, 1)
 
     return {
         **candidate,
@@ -136,15 +159,28 @@ def rank_candidates(candidates, top_n=5):
 
     scored.sort(key=lambda x: x['final_score'], reverse=True)
 
-    # Max 2 stories per player
-    seen_players = {}
+    seen_players  = {}  # entity_id → count
+    seen_types    = {}  # story_type → count
+    seen_type_stat = {} # (story_type, stat) → count  — prevents e.g. 2x pace-hr
     filtered = []
+
     for s in scored:
-        pid   = s['entity_id']
-        count = seen_players.get(pid, 0)
-        if count < 2:
-            filtered.append(s)
-            seen_players[pid] = count + 1
+        pid       = s['entity_id']
+        stype     = s['type']
+        stat      = s.get('stat', '')
+        type_stat = (stype, stat)
+
+        if seen_players.get(pid, 0) >= 2:
+            continue
+        if seen_types.get(stype, 0) >= 2:
+            continue
+        if seen_type_stat.get(type_stat, 0) >= 1:
+            continue
+
+        filtered.append(s)
+        seen_players[pid]       = seen_players.get(pid, 0) + 1
+        seen_types[stype]       = seen_types.get(stype, 0) + 1
+        seen_type_stat[type_stat] = seen_type_stat.get(type_stat, 0) + 1
 
     return filtered[:top_n]
 
