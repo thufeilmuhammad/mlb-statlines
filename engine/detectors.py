@@ -181,16 +181,16 @@ def detect_pace(min_games=20):
 # OUTLIER DETECTOR
 # ══════════════════════════════════════
 
-def detect_outliers(min_games=20):
+def detect_outliers(min_games=20, min_ab=60):
     conn = get_connection()
     c = conn.cursor()
     candidates = []
     season = get_current_season()
 
     c.execute('''
-        SELECT player_id, player_name, team, g, avg, obp, slg, ops, hr, sb
-        FROM season_batting WHERE season = ? AND g >= ?
-    ''', (season, min_games))
+        SELECT player_id, player_name, team, g, ab, avg, obp, slg, ops, hr, sb
+        FROM season_batting WHERE season = ? AND g >= ? AND ab >= ?
+    ''', (season, min_games, min_ab))
     batters = c.fetchall()
 
     if batters:

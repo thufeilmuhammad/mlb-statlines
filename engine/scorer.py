@@ -166,9 +166,9 @@ def rank_candidates(candidates, top_n=5):
 
     scored.sort(key=lambda x: x['final_score'], reverse=True)
 
-    seen_players  = {}  # entity_id → count
-    seen_types    = {}  # story_type → count
-    seen_type_stat = {} # (story_type, stat) → count  — prevents e.g. 2x pace-hr
+    seen_players   = {}  # entity_id → count (max 1 per player)
+    seen_types     = {}  # story_type → count (max 2 per type)
+    seen_type_stat = {}  # (story_type, stat) → count (max 1 per type+stat combo)
     filtered = []
 
     for s in scored:
@@ -177,7 +177,7 @@ def rank_candidates(candidates, top_n=5):
         stat      = s.get('stat', '')
         type_stat = (stype, stat)
 
-        if seen_players.get(pid, 0) >= 2:
+        if seen_players.get(pid, 0) >= 1:
             continue
         if seen_types.get(stype, 0) >= 2:
             continue
@@ -185,9 +185,26 @@ def rank_candidates(candidates, top_n=5):
             continue
 
         filtered.append(s)
-        seen_players[pid]       = seen_players.get(pid, 0) + 1
-        seen_types[stype]       = seen_types.get(stype, 0) + 1
+        seen_players[pid]         = seen_players.get(pid, 0) + 1
+        seen_types[stype]         = seen_types.get(stype, 0) + 1
         seen_type_stat[type_stat] = seen_type_stat.get(type_stat, 0) + 1
+
+    # If strict filtering left fewer than top_n, do a relaxed pass
+    # (allow same player twice, but still cap type+stat at 1)
+    if len(filtered) < top_n:
+        used_ids = {s['entity_id'] for s in filtered}
+        seen_type_stat2 = dict(seen_type_stat)
+        for s in scored:
+            if len(filtered) >= top_n:
+                break
+            if s['entity_id'] in used_ids:
+                continue
+            type_stat = (s['type'], s.get('stat', ''))
+            if seen_type_stat2.get(type_stat, 0) >= 1:
+                continue
+            filtered.append(s)
+            used_ids.add(s['entity_id'])
+            seen_type_stat2[type_stat] = seen_type_stat2.get(type_stat, 0) + 1
 
     return filtered[:top_n]
 
