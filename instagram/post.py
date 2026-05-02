@@ -108,13 +108,13 @@ def post_to_instagram():
 
     ig_user_id   = os.environ['INSTAGRAM_ACCOUNT_ID']
     access_token = os.environ['INSTAGRAM_ACCESS_TOKEN']
-    image_path   = post['image_path']
     caption      = post['caption']
 
-    # Resolve relative path from repo root
-    if not os.path.isabs(image_path):
-        repo_root  = os.path.join(os.path.dirname(__file__), '..')
-        image_path = os.path.normpath(os.path.join(repo_root, image_path))
+    # Always use the stable committed image path, not the original render path
+    repo_root  = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+    image_path = os.path.join(repo_root, 'data', 'approved_image.png')
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"approved_image.png not found at {image_path}")
 
     print(f"Uploading image: {image_path}")
     image_url = upload_image(image_path)
