@@ -1,0 +1,53 @@
+name: Backfill Game Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2026-03-27'
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+        default: '2026-05-01'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Get today's date (cache key)
+        run: echo "TODAY=$(date -u +%Y-%m-%d)" >> $GITHUB_ENV
+
+      - name: Restore DB cache
+        uses: actions/cache@v4
+        with:
+          path: data/statlines.db
+          key: statlines-db-${{ env.TODAY }}
+          restore-keys: statlines-db-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Initialise DB
+        run: python -c "from data.database import init_db; init_db()"
+        env:
+          PYTHONPATH: .
+
+      - name: Run backfill
+        run: |
+          python -c "
+          from data.backfill import backfill
+          backfill('${{ github.event.inputs.start_date }}', '${{ github.event.inputs.end_date }}')
+          "
+        env:
+          PYTHONPATH: .

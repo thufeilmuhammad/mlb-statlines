@@ -1,7 +1,8 @@
 import datetime
 import time
 import sys
-sys.path.insert(0, '/Users/920355/mlb-statlines')
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data.fetch import fetch_game_pks, fetch_box_score
 
 def backfill(start_date, end_date):
