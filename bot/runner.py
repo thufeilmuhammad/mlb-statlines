@@ -63,6 +63,7 @@ async def main():
     import telegram
     from engine.detectors import run_all_detectors
     from engine.scorer import rank_candidates
+    from engine.context import build_digest_context
     from bot.approval_flow import save_state, route_reply_async
 
     TOKEN   = os.environ['TELEGRAM_BOT_TOKEN']
@@ -114,13 +115,17 @@ async def main():
     today_str = datetime.date.today().strftime('%B %d, %Y')
     lines = [f"<b>FULL COUNT · {today_str}</b>", "Today's top stories:\n"]
     for i, story in enumerate(top, 1):
-        tag  = TYPE_TAG.get(story['type'], story['type'].upper())
-        team = story.get('team', '')
-        meta = f"{team} · {tag}" if team else tag
-        lines.append(
+        tag     = TYPE_TAG.get(story['type'], story['type'].upper())
+        team    = story.get('team', '')
+        meta    = f"{team} · {tag}" if team else tag
+        context = build_digest_context(story)
+        entry   = (
             f"{i}. <b>{story['entity_name']}</b> · {meta} — {story['final_score']}\n"
             f"   {story['label']}\n"
         )
+        if context:
+            entry += f"   <i>{context}</i>\n"
+        lines.append(entry)
     lines.append(f"Reply with a number (1–{len(top)}) to pick a story.")
     await bot.send_message(chat_id=CHAT_ID, text='\n'.join(lines), parse_mode='HTML')
     print(f"Digest sent — {len(top)} stories.")
