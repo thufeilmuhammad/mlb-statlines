@@ -199,6 +199,15 @@ def _streak_context(story):
     return ''
 
 
+def career_batting(player_id, stat_col, higher_is_better=True):
+    """Public wrapper for caption writers."""
+    return _career_high_batting(str(player_id), stat_col, higher_is_better)
+
+def career_pitching(player_id, stat_col, higher_is_better=False):
+    """Public wrapper for caption writers."""
+    return _career_high_pitching(str(player_id), stat_col, higher_is_better)
+
+
 def build_digest_context(story) -> str:
     """Return a one-line context string for a digest entry, or '' if none."""
     try:
