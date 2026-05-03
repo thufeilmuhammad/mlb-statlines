@@ -54,6 +54,7 @@ def _commit_approved():
     if staged.returncode != 0:
         today = datetime.date.today().isoformat()
         subprocess.run(['git', 'commit', '-m', f'chore: approved post {today}'], check=True)
+        subprocess.run(['git', 'pull', '--rebase'], check=True)
         subprocess.run(['git', 'push'], check=True)
         print("Committed and pushed approved post.")
     else:
