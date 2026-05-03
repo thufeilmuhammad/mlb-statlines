@@ -278,11 +278,190 @@ def build_pace_html(story):
 </html>"""
     return html
 
+STAT_DISPLAY = {
+    'outlier_ops':    ('OPS', None),
+    'outlier_avg':    ('BAT AVG', None),
+    'outlier_era':    ('ERA', None),
+    'hitting_streak': ('GAME\nHIT STREAK', None),
+    'onbase_streak':  ('GAME\nON-BASE STREAK', None),
+    'cold_streak':    ('GAME\nCOLD STREAK', None),
+    'era_spike':      ('ERA', 'ERA SPIKE'),
+}
+
+def build_generic_html(story):
+    team      = story.get('team', '')
+    colors    = get_team_colors(team)
+    primary   = colors['primary']
+    secondary = colors['secondary']
+    is_light  = luminance(primary) > 128
+
+    sr, sg, sb = hex_to_rgb(secondary)
+
+    sec_lum = luminance(secondary)
+    pri_lum = luminance(primary)
+    if abs(sec_lum - pri_lum) < 60:
+        ar, ag, ab = (0,0,0) if is_light else (255,255,255)
+    else:
+        ar, ag, ab = sr, sg, sb
+
+    def tc(a):
+        return f'rgba(0,0,0,{a})' if is_light else f'rgba(255,255,255,{a})'
+
+    def sc(a):
+        return f'rgba({sr},{sg},{sb},{a})'
+
+    text_solid = '#000000' if is_light else '#ffffff'
+
+    story_type = story.get('type', '')
+    value      = story.get('value', '')
+    games      = story.get('games_played', '')
+    lede       = story.get('lede', '')
+    context    = story.get('context', '')
+    z_score    = story.get('z_score', None)
+
+    stat_lbl, eyebrow_override = STAT_DISPLAY.get(story_type, (story.get('stat', 'STAT').upper(), None))
+    eyebrow_tag = eyebrow_override or story_type.replace('_', ' ').upper()
+
+    team_names = {
+        'NYY':'New York Yankees','BOS':'Boston Red Sox','BAL':'Baltimore Orioles',
+        'TBR':'Tampa Bay Rays','TOR':'Toronto Blue Jays','HOU':'Houston Astros',
+        'LAA':'LA Angels','SEA':'Seattle Mariners','OAK':'Oakland Athletics',
+        'ATH':'Athletics','TEX':'Texas Rangers','CLE':'Cleveland Guardians',
+        'CWS':'Chicago White Sox','DET':'Detroit Tigers','KCR':'Kansas City Royals',
+        'MIN':'Minnesota Twins','NYM':'New York Mets','ATL':'Atlanta Braves',
+        'MIA':'Miami Marlins','PHI':'Philadelphia Phillies','WSN':'Washington Nationals',
+        'CHC':'Chicago Cubs','CIN':'Cincinnati Reds','MIL':'Milwaukee Brewers',
+        'PIT':'Pittsburgh Pirates','STL':'St. Louis Cardinals','ARI':'Arizona Diamondbacks',
+        'COL':'Colorado Rockies','LAD':'Los Angeles Dodgers','SDP':'San Diego Padres',
+        'SFG':'San Francisco Giants',
+    }
+    team_full = team_names.get(team, team)
+    today_str = datetime.date.today().strftime('%B %d, %Y').upper()
+
+    z_box = ''
+    if z_score is not None:
+        z_box = f"""
+      <div class="sc">
+        <div class="sc-val">+{z_score:.1f}</div>
+        <div class="sc-label">Standard<br>deviations above<br>league avg</div>
+      </div>"""
+
+    games_box = ''
+    if games:
+        games_box = f"""
+      <div class="sc">
+        <div class="sc-val">{games}</div>
+        <div class="sc-label">Games<br>played</div>
+      </div>"""
+
+    context_block = f'<div class="context">{context}</div>' if context else ''
+    lede_block    = f'<div class="lede">{lede}</div>'       if lede    else ''
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    width: 1080px;
+    background: {primary};
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }}
+  .card {{
+    width: 1080px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }}
+  .topbar {{ height: 6px; background: {secondary}; }}
+  .masthead {{
+    padding: 20px 44px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid {sc(0.3)};
+  }}
+  .pub {{
+    font-size: 28px; font-weight: 700;
+    letter-spacing: 0.18em; font-family: 'Georgia', serif;
+    color: {text_solid};
+  }}
+  .meta {{ font-size: 17px; color: {tc(0.5)}; letter-spacing: 0.06em; }}
+  .inner {{ padding: 22px 44px 0; display: flex; flex-direction: column; }}
+  .eyebrow {{
+    font-size: 17px; color: {tc(0.5)};
+    letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px;
+  }}
+  .headline {{
+    font-size: 52px; font-weight: 700;
+    font-family: 'Georgia', serif; color: {text_solid};
+    line-height: 1.1; margin-bottom: 14px;
+    padding-bottom: 14px; border-bottom: 1px solid {sc(0.3)};
+  }}
+  .lede {{
+    font-size: 19px; color: {tc(0.65)};
+    font-style: italic; line-height: 1.55; margin-bottom: 20px;
+  }}
+  .stat-row {{ display: flex; gap: 14px; margin-bottom: 24px; }}
+  .sc {{
+    flex: 1; border-radius: 6px; padding: 18px 22px 14px;
+    border: 1px solid {sc(0.45)}; background: {sc(0.12)};
+  }}
+  .sc-val {{
+    font-size: 60px; font-weight: 700;
+    font-family: 'Georgia', serif; color: {text_solid}; line-height: 1;
+  }}
+  .sc-label {{
+    font-size: 15px; color: {tc(0.45)};
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin-top: 6px; line-height: 1.4; white-space: pre-line;
+  }}
+  .context {{
+    font-size: 18px; color: {tc(0.62)}; line-height: 1.65;
+    border-left: 4px solid {sc(0.8)};
+    padding-left: 16px; margin-bottom: 22px;
+  }}
+  .footer {{
+    padding: 14px 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid {sc(0.25)}; background: {sc(0.08)};
+  }}
+  .footer-text {{ font-size: 15px; color: {tc(0.3)}; letter-spacing: 0.06em; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="topbar"></div>
+  <div class="masthead">
+    <div class="pub">{ACCOUNT_NAME}</div>
+    <div class="meta">{today_str} &nbsp;·&nbsp; {eyebrow_tag}</div>
+  </div>
+  <div class="inner">
+    <div class="eyebrow">{team_full} &nbsp;·&nbsp; {story['entity_name']}</div>
+    <div class="headline">{story['label']}</div>
+    {lede_block}
+    <div class="stat-row">
+      <div class="sc">
+        <div class="sc-val">{value}</div>
+        <div class="sc-label">{stat_lbl}</div>
+      </div>{z_box}{games_box}
+    </div>
+    {context_block}
+  </div>
+  <div class="footer">
+    <div class="footer-text">{IG_HANDLE}</div>
+    <div class="footer-text">MLB STATS API · BASEBALL REFERENCE</div>
+  </div>
+</div>
+</body>
+</html>"""
+    return html
+
+
 def render_story(story, output_filename=None):
-    html = build_pace_html(story)
+    story_type = story.get('type', '')
+    html = build_pace_html(story) if story_type == 'pace' else build_generic_html(story)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if not output_filename:
-        output_filename = f"{story['type']}_{story['entity_id']}_{datetime.date.today()}.png"
+        output_filename = f"{story_type}_{story['entity_id']}_{datetime.date.today()}.png"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     return render_html_to_image(html, output_path)
 
