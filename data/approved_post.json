@@ -1,13 +1,13 @@
 {
   "image_path": "data/approved_image.png",
-  "caption": "Munetaka Murakami is on pace for 66 home runs \u2014 chasing one of the greatest seasons ever.\n\n13 home runs through 32 games. Barry Bonds set the all-time single-season record with 73 home runs in 2001. No one has hit 62 or more since. Reaching that territory would be one of the most remarkable power seasons in baseball history.\n\nIs this the real deal? \ud83d\udc47\n\n#MLB #Baseball #MunetakaMurakami #FullCountID",
+  "caption": "Aaron Judge is on pace for 61 home runs this season.\n\n12 home runs through 32 games. Barry Bonds set the all-time single-season record with 73 home runs in 2001. No one has hit 62 or more since. Reaching that territory would be one of the most remarkable power seasons in baseball history.\n\nIs this the real deal? \ud83d\udc47\n\n#MLB #Baseball #AaronJudge #FullCountID",
   "story": {
     "type": "pace",
-    "entity_id": "808959",
-    "entity_name": "Munetaka Murakami",
-    "team": "CWS",
-    "value": 13,
-    "projected": 66,
+    "entity_id": "592450",
+    "entity_name": "Aaron Judge",
+    "team": "NYY",
+    "value": 12,
+    "projected": 61,
     "stat": "hr",
     "stat_label": "home runs",
     "games_played": 32,
@@ -15,11 +15,11 @@
     "record_holder": "Barry Bonds",
     "record_year": 2001,
     "record_context": "Barry Bonds set the all-time single-season record with 73 home runs in 2001. No one has hit 62 or more since. Reaching that territory would be one of the most remarkable power seasons in baseball history.",
-    "label": "Munetaka Murakami is on pace for 66 home runs \u2014 chasing one of the greatest seasons ever",
-    "lede": "Munetaka Murakami has 13 home runs through 32 games this season. At that rate, he projects for 66 over a full 162-game season. The all-time single-season record is 73, set by Barry Bonds in 2001.",
+    "label": "Aaron Judge is on pace for 61 home runs this season",
+    "lede": "Aaron Judge has 12 home runs through 32 games this season. At that rate, he projects for 61 over a full 162-game season. The all-time single-season record is 73, set by Barry Bonds in 2001.",
     "context": "Barry Bonds set the all-time single-season record with 73 home runs in 2001. No one has hit 62 or more since. Reaching that territory would be one of the most remarkable power seasons in baseball history.",
-    "raw_rarity": 0.9041095890410958,
-    "pick_number": 4
+    "raw_rarity": 0.8356164383561644,
+    "pick_number": 1
   },
-  "approved_at": "2026-05-02T14:41:47.189408"
+  "approved_at": "2026-05-03T01:15:41.867249"
 }
