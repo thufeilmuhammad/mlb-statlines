@@ -60,7 +60,7 @@ def run_morning_digest():
     from bot.telegram_bot import send_digest, send_message
     print("Running story engine...")
     candidates = run_all_detectors()
-    top        = rank_candidates(candidates, top_n=5)
+    top        = rank_candidates(candidates, top_n=10)
     if not top:
         asyncio.run(send_message("No strong story candidates today."))
         return
@@ -187,10 +187,11 @@ async def route_reply_async(text, bot, chat_id):
     state = load_state()
     step  = state.get('step', '')
     if step == 'awaiting_pick':
-        if text.strip().isdigit() and 1 <= int(text.strip()) <= 5:
+        n = len(state.get('stories', []))
+        if text.strip().isdigit() and 1 <= int(text.strip()) <= n:
             await handle_pick(int(text.strip()), bot, chat_id)
         else:
-            await bot.send_message(chat_id=chat_id, text="Reply with a number (1-5) to pick a story.")
+            await bot.send_message(chat_id=chat_id, text=f"Reply with a number (1–{n}) to pick a story.")
     elif step == 'awaiting_review':
         await handle_review(text, bot, chat_id)
     else:

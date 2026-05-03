@@ -34,14 +34,27 @@ def send_image(image_path, caption=None):
         asyncio.run(send_photo(image_path, caption))
 
 def send_digest(top_stories):
+    type_tag = {
+        'hitting_streak': 'HIT STREAK',
+        'onbase_streak':  'OBP STREAK',
+        'pace':           'PACE',
+        'outlier_ops':    'OPS',
+        'outlier_avg':    'AVG',
+        'outlier_era':    'ERA',
+        'cold_streak':    'COLD',
+        'era_spike':      'SPIKE',
+    }
     today = datetime.date.today().strftime('%B %d, %Y')
     lines = [f"<b>FULL COUNT · {today}</b>", "Today's top stories:\n"]
     for i, story in enumerate(top_stories, 1):
+        tag  = type_tag.get(story['type'], story['type'].upper())
+        team = story.get('team', '')
+        meta = f"{team} · {tag}" if team else tag
         lines.append(
-            f"{i}. <b>{story['entity_name']}</b> [{story['final_score']}]\n"
+            f"{i}. <b>{story['entity_name']}</b> · {meta} — {story['final_score']}\n"
             f"   {story['label']}\n"
         )
-    lines.append("Reply with a number (1-5) to pick a story.")
+    lines.append(f"Reply with a number (1–{len(top_stories)}) to pick a story.")
     text = '\n'.join(lines)
     try:
         loop = asyncio.get_running_loop()

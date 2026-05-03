@@ -79,10 +79,21 @@ async def main():
 
     bot = telegram.Bot(token=TOKEN)
 
+    TYPE_TAG = {
+        'hitting_streak': 'HIT STREAK',
+        'onbase_streak':  'OBP STREAK',
+        'pace':           'PACE',
+        'outlier_ops':    'OPS',
+        'outlier_avg':    'AVG',
+        'outlier_era':    'ERA',
+        'cold_streak':    'COLD',
+        'era_spike':      'SPIKE',
+    }
+
     # ── Run story engine ──
     print("Running story engine...")
     candidates = run_all_detectors()
-    top        = rank_candidates(candidates, top_n=5)
+    top        = rank_candidates(candidates, top_n=10)
 
     if not top:
         await bot.send_message(chat_id=CHAT_ID, text="No strong story candidates today.")
@@ -104,11 +115,14 @@ async def main():
     today_str = datetime.date.today().strftime('%B %d, %Y')
     lines = [f"<b>FULL COUNT · {today_str}</b>", "Today's top stories:\n"]
     for i, story in enumerate(top, 1):
+        tag  = TYPE_TAG.get(story['type'], story['type'].upper())
+        team = story.get('team', '')
+        meta = f"{team} · {tag}" if team else tag
         lines.append(
-            f"{i}. <b>{story['entity_name']}</b> [{story['final_score']}]\n"
+            f"{i}. <b>{story['entity_name']}</b> · {meta} — {story['final_score']}\n"
             f"   {story['label']}\n"
         )
-    lines.append("Reply with a number (1–5) to pick a story.")
+    lines.append(f"Reply with a number (1–{len(top)}) to pick a story.")
     await bot.send_message(chat_id=CHAT_ID, text='\n'.join(lines), parse_mode='HTML')
     print(f"Digest sent — {len(top)} stories.")
 
